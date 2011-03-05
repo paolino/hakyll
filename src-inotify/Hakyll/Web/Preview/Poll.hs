@@ -4,7 +4,9 @@ module Hakyll.Web.Preview.Poll
     ( previewPoll
     ) where
 
-import Control.Monad (forM_)
+import Control.Monad (forM_, forever)
+import Control.Concurrent.STM 
+import Control.Concurrent 
 import System.FilePath (takeDirectory)
 import Data.List (nub)
 import Data.Set (Set,toList)
@@ -22,9 +24,11 @@ previewPoll :: HakyllConfiguration  -- ^ Configuration
             -> IO ()                -- ^ Action called when something changes or added
             -> (FilePath -> IO ())                -- ^ Action called when something is deleted
             -> IO ()                -- ^ Can block forever
+
 previewPoll _ resources build rebuild = do
     -- Initialize inotify
     inotify <- initINotify
+    ch <- atomically $ newTChan
 
     let -- Problem: we can't add a watcher for "". So we make sure a directory
         -- name is not empty
@@ -36,10 +40,14 @@ previewPoll _ resources build rebuild = do
         directories = nub . map (notEmpty . takeDirectory . toFilePath . unResource) $ toList resources
 
     -- Add a watcher for every directory
-    forM_ directories $ \directory -> addWatch inotify [AllEvents] directory $ \e -> case e of
-	Created False _ -> build
-	Modified False _ -> build
-	MovedIn False _ _ -> build
-	MovedOut False f _ -> rebuild f
-	Deleted False f -> rebuild f
-	x -> return ()	
+    forM_ directories $ \directory -> addWatch inotify [AllEvents] directory $ atomically . writeTChan ch
+    forkIO . forever $ do
+	e <- atomically $ readTChan ch
+	case e of
+		Created False _ -> build
+		Modified False _ -> build
+		MovedIn False _ _ -> build
+		MovedOut False f _ -> rebuild f
+		Deleted False f -> rebuild f
+		x -> return ()	
+    return ()
