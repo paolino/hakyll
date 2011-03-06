@@ -20,15 +20,15 @@ import Hakyll.Core.Identifier
 void f = f >> return ()
 -- | Calls the given callback when the directory tree changes
 --
-delta = 10000
 previewPoll :: HakyllConfiguration  -- ^ Configuration
             -> Set Resource         -- ^ Resources to watch
             -> IO ()                -- ^ Action called when something changes or added
             -> (FilePath -> IO ())                -- ^ Action called when something is deleted
             -> IO ()                -- ^ Can block forever
 
-previewPoll _ resources build rebuild = do
+previewPoll hc resources build rebuild = do
     -- Initialize inotify
+    let delta = timeToWaitCreate hc
     inotify <- initINotify
     ch <- atomically $ newTChan
     tds <- atomically $ newTVar []
@@ -62,7 +62,9 @@ previewPoll _ resources build rebuild = do
 	e <- atomically $ readTChan ch
 	case e of
 		Created False p -> decided p >> build
+		MovedIn False p _ -> decided p >> build
 		Modified False _ -> build
 		Deleted False p -> deleted p rebuild 
+		MovedOut False p _ -> deleted p rebuild
 		x -> return ()	
     return ()

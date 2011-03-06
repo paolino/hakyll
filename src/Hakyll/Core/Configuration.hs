@@ -24,6 +24,7 @@ data HakyllConfiguration = HakyllConfiguration
       -- * files ending with @.swp@
       --
       ignoreFile           :: FilePath -> Bool
+    , timeToWaitCreate 	   :: Int
     }
 
 -- | Default configuration for a hakyll application
@@ -33,6 +34,7 @@ defaultHakyllConfiguration = HakyllConfiguration
     { destinationDirectory = "_site"
     , storeDirectory       = "_cache"
     , ignoreFile           = ignoreFile'
+    , timeToWaitCreate     = 10000000
     }
   where
     ignoreFile' path
