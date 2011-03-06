@@ -37,32 +37,32 @@ library
 
   if flag(inotify)
     hs-source-dirs:   src-inotify
-    build-depends:    hinotify >= 0.3
+    build-depends:    hinotify 
   else
     hs-source-dirs:   src-interval
 
   build-depends:      base >= 4 && < 5,
                       filepath ,
                       directory,
-                      containers == 0.*,
-                      pandoc == 1.*,
-                      regex-base >= 0.93,
-                      regex-pcre >= 0.93,
-                      mtl >= 1,
-                      old-locale == 1.*,
-                      old-time == 1.*,
-                      time >= 1.1,
-                      binary >= 0.5,
-                      hamlet >= 0.7,
-                      blaze-html >= 0.4,
-                      snap-server >= 0.4,
-                      snap-core >= 0.4,
-                      bytestring >= 0.9,
-                      utf8-string >= 0.3,
-                      tagsoup >= 0.12,
-                      hopenssl >= 1.4,
-                      unix >= 2.4,
-                      strict-concurrency >= 0.2,
+                      containers,
+                      pandoc,
+                      regex-base ,
+                      regex-pcre,
+                      mtl ,
+                      old-locale ,
+                      old-time,
+                      time ,
+                      binary,
+                      hamlet,
+                      blaze-html,
+                      snap-server,
+                      snap-core ,
+                      bytestring,
+                      utf8-string ,
+                      tagsoup ,
+                      hopenssl ,
+                      unix,
+                      strict-concurrency,
                       stm
   exposed-modules:    Hakyll
                       Hakyll.Main

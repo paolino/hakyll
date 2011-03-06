@@ -17,8 +17,10 @@ import Hakyll.Core.Configuration
 import Hakyll.Core.ResourceProvider
 import Hakyll.Core.Identifier
 
+void f = f >> return ()
 -- | Calls the given callback when the directory tree changes
 --
+delta = 10000
 previewPoll :: HakyllConfiguration  -- ^ Configuration
             -> Set Resource         -- ^ Resources to watch
             -> IO ()                -- ^ Action called when something changes or added
@@ -29,7 +31,22 @@ previewPoll _ resources build rebuild = do
     -- Initialize inotify
     inotify <- initINotify
     ch <- atomically $ newTChan
-
+    tds <- atomically $ newTVar []
+    let 
+	decided x = atomically $ do
+		ds <- readTVar tds
+		writeTVar tds $ filter ((/=) x) ds
+		return $ x `elem` ds 
+	deleted x f = void . forkIO $ do
+		atomically $ readTVar tds >>= writeTVar tds . (x:)
+		threadDelay delta
+		t <- decided x
+		if t then f x else return ()
+	
+		
+		
+	
+	
     let -- Problem: we can't add a watcher for "". So we make sure a directory
         -- name is not empty
         notEmpty "" = "."
@@ -44,10 +61,8 @@ previewPoll _ resources build rebuild = do
     forkIO . forever $ do
 	e <- atomically $ readTChan ch
 	case e of
-		Created False _ -> build
+		Created False p -> decided p >> build
 		Modified False _ -> build
-		MovedIn False _ _ -> build
-		MovedOut False f _ -> rebuild f
-		Deleted False f -> rebuild f
+		Deleted False p -> deleted p rebuild 
 		x -> return ()	
     return ()
