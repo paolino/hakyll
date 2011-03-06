@@ -46,7 +46,7 @@ library
                       directory,
                       containers,
                       pandoc,
-                      regex-base ,
+                      regex-base == 0.93.2,
                       regex-pcre,
                       mtl ,
                       old-locale ,
