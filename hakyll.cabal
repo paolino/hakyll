@@ -63,7 +63,9 @@ library
                       hopenssl ,
                       unix,
                       strict-concurrency,
-                      stm
+                      stm,
+                      HTTP == 4000.1.1,
+                      QuickCheck ==2.4.0.1
   exposed-modules:    Hakyll
                       Hakyll.Main
                       Hakyll.Web.Blaze
