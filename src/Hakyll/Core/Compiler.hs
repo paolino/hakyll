@@ -181,8 +181,14 @@ getRouteFor = fromJob $ \identifier -> CompilerM $ do
 --
 getResourceString :: Compiler Resource String
 getResourceString = fromJob $ \resource -> CompilerM $ do
+    let identifier = unResource resource
     provider <- compilerResourceProvider <$> ask
-    liftIO $ resourceString provider resource
+    if resourceExists provider identifier
+        then liftIO $ resourceString provider resource
+        else throwError $ error' identifier
+  where
+    error' id' =  "Hakyll.Core.Compiler.getResourceString: resource "
+               ++ show id' ++ " not found"
 
 -- | Auxiliary: get a dependency
 --
@@ -269,9 +275,9 @@ cached name (Compiler d j) = Compiler d $ const $ CompilerM $ do
                 return v
         else do v <- liftIO $ storeGet store name identifier
                 case v of Just v' -> return v'
-                          Nothing -> error'
+                          Nothing -> throwError error'
   where
-    error' = error "Hakyll.Core.Compiler.cached: Cache corrupt!"
+    error' = "Hakyll.Core.Compiler.cached: Cache corrupt!"
 
 -- | Create an unsafe compiler from a function in IO
 --
