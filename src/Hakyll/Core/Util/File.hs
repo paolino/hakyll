@@ -25,6 +25,7 @@ import System.Time (ClockTime)
 makeDirectories :: FilePath -> IO ()
 makeDirectories = createDirectoryIfMissing True . takeDirectory
 
+
 -- | Get all contents of a directory. Note that files starting with a dot (.)
 -- will be ignored.
 --
@@ -51,9 +52,10 @@ data Modifications = Modifications {
 -- half correct instance. It forces files which have been deleted and created to be marked as modifications. It's not correct as a delete after a create is not a modification. But correcting this bug involves mostly comparing timestamps correctly, because it can happen inside one element of the mappend.
 instance Monoid Modifications where
 	Modifications n d m `mappend` Modifications n' d' m' = let
+		mm = nub $ m ++ m'
 		nn = nub $ n ++ n'
 		dd = nub $ d ++ d' 
-		in Modifications (nn \\ dd) (dd \\ nn) (nub $ m ++ m' ++ intersect nn dd)
+		in Modifications ((nn \\ dd) \\ mm) ((dd \\ nn) \\ mm) (nub $ mm ++ intersect nn dd)
 	mempty = Modifications [] [] []
 
 -- | create a stateful sampling action for a hierarchy. State is needed because we compute diffs 
