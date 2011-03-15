@@ -69,6 +69,7 @@ storeSet store name identifier value = do
 storeGet :: (Binary a, Typeable a, Writable a)
          => Store -> String -> Identifier -> IO (Maybe a)
 storeGet store name identifier = do
+    let path = makePath store name identifier
     -- First check the in-memory map
     map' <- readMVar $ storeMap store
     case M.lookup path map' of
@@ -84,5 +85,3 @@ storeGet store name identifier = do
                 else do v <- decodeFile path
                         addToMap store path v
                         return $ Just v
-  where
-    path = makePath store name identifier

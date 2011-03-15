@@ -24,7 +24,6 @@ import Hakyll.Core.Util.File
 import Hakyll.Core.Compiler
 import Hakyll.Core.Compiler.Internal
 import Hakyll.Core.ResourceProvider
-import Hakyll.Core.ResourceProvider.FileResourceProvider
 import Hakyll.Core.Rules.Internal
 import Hakyll.Core.DirectedGraph
 import Hakyll.Core.DirectedGraph.DependencySolver
@@ -43,7 +42,7 @@ run configuration rules = do
     store <- timed logger "Creating store" $
         makeStore $ storeDirectory configuration
     provider <- timed logger "Creating provider" $
-        fileResourceProvider configuration
+        resourceProvider configuration
 
     let ruleSet = runRules rules provider
         compilers = rulesCompilers ruleSet

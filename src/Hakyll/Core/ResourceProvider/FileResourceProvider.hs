@@ -11,14 +11,13 @@ import qualified Data.ByteString.Lazy as LB
 import Hakyll.Core.ResourceProvider
 import Hakyll.Core.Identifier
 import Hakyll.Core.Util.File
-import Hakyll.Core.Configuration
 
 -- | Create a filesystem-based 'ResourceProvider'
 --
-fileResourceProvider :: HakyllConfiguration -> IO ResourceProvider
-fileResourceProvider configuration = do
+fileResourceProvider :: (FilePath -> Bool) -> IO ResourceProvider
+fileResourceProvider ignoreFile = do
     -- Retrieve a list of identifiers
-    list <- map parseIdentifier . filter (not . ignoreFile configuration) <$>
+    list <- map parseIdentifier . filter (not . ignoreFile) <$>
         getRecursiveContents False "."
 
     -- Construct a resource provider
