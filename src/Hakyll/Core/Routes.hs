@@ -47,7 +47,6 @@ import Hakyll.Core.Util.String
 -- | Type used for a route
 --
 newtype Routes = Routes {unRoutes :: Identifier -> Maybe FilePath}
-
 instance Monoid Routes where
     mempty = Routes $ const Nothing
     mappend (Routes f) (Routes g) = Routes $ \id' -> f id' `mplus` g id'

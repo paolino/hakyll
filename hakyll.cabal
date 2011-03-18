@@ -31,6 +31,11 @@ flag inotify
                     only works on Linux.
   default:          False
 
+test-suite test
+  type : exitcode-stdio-1.0
+  main-is: TestSuite.hs
+  hs-source-dirs: tests
+
 library
   ghc-options:        -Wall
   hs-source-dirs:     src
@@ -46,7 +51,7 @@ library
                       directory,
                       containers,
                       pandoc,
-                      regex-base == 0.93.2,
+                      regex-base,
                       regex-pcre,
                       mtl ,
                       old-locale ,
@@ -64,8 +69,8 @@ library
                       unix,
                       strict-concurrency,
                       stm,
-                      HTTP == 4000.1.1,
-                      QuickCheck ==2.4.0.1
+                      HTTP,
+                      QuickCheck 
   exposed-modules:    Hakyll
                       Hakyll.Main
                       Hakyll.Web.Blaze

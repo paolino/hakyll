@@ -3,7 +3,7 @@
 --
 module Hakyll.Core.Util.File
     ( makeDirectories
-     , getRecursiveContents
+     , tracker
     ) where
 
 import Control.Applicative ((<$>))
@@ -38,7 +38,7 @@ getRecursiveContents = runListT . getRecursiveContents' where
 			name <- ListT $ getDirectoryContents path
 			guard . not . isPrefixOf "." $ name
 			getRecursiveContents' . normalise $ path </> name
-		else (path,) <$> lift (getModificationTime path)
+			else (path,) <$> lift (getModificationTime path)
 
 
 -- | Modifications description 
@@ -61,25 +61,25 @@ instance Monoid Modifications where
 -- | create a stateful sampling action for a hierarchy. State is needed because we compute diffs 
 mkSupervisor 	:: FilePath 			-- ^ top directory
 		-> IO (IO Modifications)	-- ^ null initialized stateful action
-mkSupervisor top = let
-	news' ws xs = map fst xs \\ map fst ws 
-	deleteds' ws xs = map fst ws \\ map fst xs
-	modified' ws xs = catMaybes $ do 
-		(x,t) <- xs
-		return $  lookup x ws >>= \t' -> if t /= t' then Just x else Nothing
-	in do 	t <- atomically $ newTVar [] 
-		return $ do 
-			xs <- getRecursiveContents top 
-			ws <- atomically $ do 
-				ws <- readTVar t
-				writeTVar t xs
-				return ws
-			return (Modifications (news' ws xs) (deleteds' ws xs) (modified' ws xs))
+mkSupervisor top = do 	
+	t <- atomically $ newTVar [] 
+	return $ do 
+		xs <- getRecursiveContents top 
+		ws <- atomically $ do 
+			ws <- readTVar t
+			writeTVar t xs
+			return ws
+		let 	news' = map fst xs \\ map fst ws 
+			deleteds' = map fst ws \\ map fst xs
+			modified' = catMaybes $ do 
+				(x,t) <- xs
+				return $  lookup x ws >>= \t' -> if t /= t' then Just x else Nothing
+		return $ Modifications news' deleteds' modified'
 
 -- | a concurrent STM Monoid
 data TMonoid m = TMonoid {
-	writeTMonoid :: m -> STM (),
-	readTMonoid :: STM m
+	writeTMonoid :: m -> STM (), -- ^ mappend the value
+	readTMonoid :: STM m -- ^ peek the monoid and reset it
 	}
 
 -- | create a TMonoid for a comparable Monoid. This is a special TMonoid which waits for an empty update to release a read
@@ -87,15 +87,15 @@ newDelayedTMonoid :: (Monoid m, Eq m)
 	=> Int			-- ^ number of empty mappends before allowing the read 
 	-> STM (TMonoid m)	-- ^ a delayed TMonoid
 newDelayedTMonoid n = do
-	x <- newTVar mempty
-	was <- newTVar 0
-	let 	write y	| y == mempty = readTVar was >>= writeTVar was  . (+ 1)
-			| otherwise = readTVar x >>= writeTVar x . (`mappend` y) >> writeTVar was 0
+	x <- newTVar mempty -- the monoid
+	was <- newTVar 0 -- delay counter
+	let 	write y	| y == mempty = readTVar was >>= writeTVar was . (+ 1) -- update counter
+			| otherwise = readTVar x >>= writeTVar x . (`mappend` y) >> writeTVar was 0 --update monoid and reset counter
 		read = do
 			y <- readTVar x
 			z <- readTVar was
-			when (y == mempty || z < n) retry
-			writeTVar x mempty
+			when (y == mempty || z <= n) retry -- on empty monoid and lately busy 
+			writeTVar x mempty -- reset the monoid
 			return y
 	return $ TMonoid write read
 
@@ -107,10 +107,10 @@ trackPollFiles 	:: Int 			-- ^ polling delay in seconds
 trackPollFiles n top tm = do
 	s <- mkSupervisor top 
 	k <- forkIO . forever $ threadDelay (1000000 * n) >> s >>= atomically . writeTMonoid tm	
-	return (killThread k)
+	return $ killThread k
 
 -- | Execute an action on file changes in a hierarchy. 
-tracker			:: Int 		-- ^ polling delay in seconds
+tracker	:: Int 		-- ^ polling delay in seconds
 			-> Int		-- ^ number of no-change delays before running the action 
 			-> FilePath	-- ^ file hierarchy top
 			-> (Modifications -> IO ()) -- ^ the action executed on non empty modifications

@@ -1,3 +1,4 @@
+{-# LANGUAGE ScopedTypeVariables #-}
 -- | Module providing pattern matching and capturing on 'Identifier's.
 --
 -- A very simple pattern could be, for example, @foo\/bar@. This pattern will
@@ -37,33 +38,25 @@ module Hakyll.Core.Identifier.Pattern
     , fromCapture
     , fromCaptureString
     , fromCaptures
+    , invariant
+
     ) where
 
-import Data.List (intercalate)
-import Control.Monad (msum)
+import Data.List (intercalate, inits, tails)
+import Control.Monad (msum, liftM2, forM)
 import Data.Maybe (isJust)
 import Data.Monoid (mempty, mappend)
+import Control.Arrow ((&&&))
 
-import GHC.Exts (IsString, fromString)
+import Data.String (IsString, fromString)
 
 import Hakyll.Core.Identifier
-
--- | One base element of a pattern
---
-data PatternComponent = CaptureOne
-                      | CaptureMany
-                      | Literal String
-                      deriving (Eq)
+import Hakyll.Core.Identifier.Pattern.Internal (Pattern (..), PatternComponent (..)) 
 
 instance Show PatternComponent where
     show CaptureOne = "*"
     show CaptureMany = "**"
     show (Literal s) = s
-
--- | Type that allows matching on identifiers
---
-newtype Pattern = Pattern {unPattern :: [PatternComponent]}
-                deriving (Eq)
 
 instance Show Pattern where
     show = intercalate "/" . map show . unPattern
@@ -75,10 +68,11 @@ instance IsString Pattern where
 --
 parsePattern :: String -> Pattern
 parsePattern = Pattern . map toPattern . unIdentifier . parseIdentifier
-  where
-    toPattern x | x == "*"  = CaptureOne
-                | x == "**" = CaptureMany
-                | otherwise = Literal x
+
+toPattern ::  [Char] -> PatternComponent
+toPattern x | x == "*"  = CaptureOne
+            | x == "**" = CaptureMany
+            | otherwise = Literal x
 
 -- | Match an identifier against a pattern, generating a list of captures
 --
@@ -98,11 +92,7 @@ matches p = filter (doesMatch p)
 -- | Split a list at every possible point, generate a list of (init, tail) cases
 --
 splits :: [a] -> [([a], [a])]
-splits ls = reverse $ splits' [] ls
-  where
-    splits' lx ly = (lx, ly) : case ly of
-        []       -> []
-        (y : ys) -> splits' (lx ++ [y]) ys
+splits = uncurry zip . (inits &&& tails) 
 
 -- | Internal verion of 'match'
 --
@@ -148,13 +138,23 @@ fromCaptureString pattern = fromCapture pattern . parseIdentifier
 
 -- | Create an identifier from a pattern by filling in the captures with the
 -- given list of strings
---
-fromCaptures :: Pattern -> [Identifier] -> Identifier
-fromCaptures (Pattern []) _ = mempty
-fromCaptures (Pattern (m : ms)) [] = case m of
-    Literal l -> Identifier [l] `mappend` fromCaptures (Pattern ms) []
-    _         -> error $  "Hakyll.Core.Identifier.Pattern.fromCaptures: "
-                       ++ "identifier list exhausted"
-fromCaptures (Pattern (m : ms)) ids@(i : is) = case m of
-    Literal l -> Identifier [l] `mappend` fromCaptures (Pattern ms) ids
-    _         -> i `mappend` fromCaptures (Pattern ms) is
+fromCaptures ::  Pattern -> [Identifier] -> Identifier
+fromCaptures p = maybe (error "Hakyll.Core.Identifier.Pattern: filling a pattern failed") id . unmatch p
+
+unmatch :: Pattern -> [Identifier] -> Maybe Identifier
+unmatch (Pattern []) _ = Just mempty
+unmatch (Pattern (m : ms)) [] = case m of
+    Literal l -> addCapture (Identifier [l]) $ unmatch (Pattern ms) []
+    _         -> Nothing 
+unmatch (Pattern (m : ms)) ids@(i : is) = case m of
+    Literal l ->  addCapture (Identifier [l]) $ unmatch (Pattern ms) ids
+    _         -> addCapture i $ unmatch (Pattern ms) is
+
+addCapture :: Identifier -> Maybe Identifier -> Maybe Identifier
+addCapture x = fmap (mappend x)
+
+-- | match unmatch invariant
+invariant ::  Pattern -> Identifier -> Bool
+invariant p x = (match p x >>= unmatch p) == Just x
+
+			

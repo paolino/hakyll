@@ -27,13 +27,14 @@ module Hakyll.Core.Identifier
     , toFilePath
     ) where
 
+
 import Control.Arrow (second)
 import Data.Monoid (Monoid)
 
-import GHC.Exts (IsString, fromString)
+import Data.String (IsString, fromString)
 import System.FilePath (joinPath)
 
--- | An identifier used to uniquely identify a value
+-- | An identifier used to uniquely identify a value. It's a list of strings each representing a switch point in the identifiers hierarchy
 --
 newtype Identifier = Identifier {unIdentifier :: [String]}
                    deriving (Eq, Ord, Monoid)
@@ -57,3 +58,5 @@ parseIdentifier = Identifier . filter (not . null) . split'
 --
 toFilePath :: Identifier -> FilePath
 toFilePath = joinPath . unIdentifier
+
+
